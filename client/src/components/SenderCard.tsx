@@ -6,7 +6,10 @@ import { Upload, File, Copy } from "lucide-react";
 import toast from "react-hot-toast";
 
 
+<<<<<<< HEAD
 import type { TransferState } from "../services/transfer/TransferState";
+=======
+>>>>>>> main
 
 // 1. Declare the props interface to satisfy Landing.tsx type rules
 
