@@ -5,7 +5,7 @@ import { socketEvents } from "../services/socketEvents";
 import { Upload, File, Copy } from "lucide-react";
 import toast from "react-hot-toast";
 
-import { chunkFile } from "../services/transfer/chunker";
+
 
 // 1. Declare the props interface to satisfy Landing.tsx type rules
 
