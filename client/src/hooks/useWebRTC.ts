@@ -10,12 +10,20 @@ import { socketEvents } from "../services/socketEvents";
 import { handleIncomingMessage } from "../services/transfer/receiver";
 
 import { sendFileTransfer } from "../services/transfer/sender";
+import {
+  initialTransferState,
+  type TransferState,
+} from "../services/transfer/TransferState";
+
+// ------IMPORTS---------
 
 export function useWebRTC(pin: string) {
   const [connectionState, setConnectionState] =
     useState<RTCPeerConnectionState>("new");
 
   const [dataChannelReady, setDataChannelReady] = useState(false);
+
+  const [transfer, setTransfer] = useState<TransferState>(initialTransferState);
 
   // Always read .current at call time so async handlers never use a stale pin
   const pinRef = useRef(pin);
@@ -174,25 +182,45 @@ export function useWebRTC(pin: string) {
     const offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
     socketActions.sendOffer(activeSessionPin, offer);
-  }  
-
-  async function sendFile(file: File) {
-  const channel = getDataChannel();
-
-  if (!channel || channel.readyState !== "open") {
-    console.error("Data channel is not ready.");
-    return;
   }
 
-  await sendFileTransfer(channel, file);
-}
+  async function sendFile(file: File) {
+    const channel = getDataChannel();
+
+    if (!channel || channel.readyState !== "open") {
+      console.error("Data channel is not ready.");
+      return;
+    }
+
+    // Initialize transfer state
+    setTransfer({
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+
+      bytesTransferred: 0,
+      bytesPerSecond: 0,
+      etaSeconds: 0,
+
+      status: "sending",
+    });
+
+    // await sendFileTransfer(channel, file);
+    await sendFileTransfer(channel, file, (bytesTransferred) => {
+      setTransfer((prev) => ({
+        ...prev,
+        bytesTransferred,
+      }));
+    });
+  }
 
   return {
     createOffer,
-    setSessionPin,    
+    setSessionPin,
     connectionState,
-    dataChannelReady,    
+    dataChannelReady,
     sendFile,
+    transfer,
     peer,
   };
 }

@@ -2,6 +2,7 @@ import { chunkFile } from "./chunker";
 import { MessageType, type MetadataMessage } from "./protocol";
 import { waitForBuffer } from "./flowControl";
 
+//sends metadata.
 async function sendMetadata(channel: RTCDataChannel, file: File) {
   const message: MetadataMessage = {
     type: MessageType.METADATA,
@@ -13,11 +14,13 @@ async function sendMetadata(channel: RTCDataChannel, file: File) {
   channel.send(JSON.stringify(message));
 }
 
+//sends chunks.
 async function sendChunk(channel: RTCDataChannel, chunk: Blob) {
   const buffer = await chunk.arrayBuffer();
   channel.send(buffer);
 }
 
+//sends end of file message.
 function sendEndOfFile(channel: RTCDataChannel) {
   channel.send(
     JSON.stringify({
@@ -26,24 +29,31 @@ function sendEndOfFile(channel: RTCDataChannel) {
   );
 }
 
-export async function sendFileTransfer(channel: RTCDataChannel, file: File) {
+export async function sendFileTransfer(
+  channel: RTCDataChannel,
+  file: File,
+  onProgress: (bytesTransferred: number) => void,
+) {
+  let bytesTransferred = 0;
   // 1. Tell receiver what file is coming
   await sendMetadata(channel, file);
 
-  const start = performance.now();
+  const start = performance.now(); //to measure file transfer time.
   // 2. Send every chunk
-  let chunkCount = 0;
-  for await (const chunk of chunkFile(file)) {
+  
+  for await (const chunk of chunkFile(file)) { 
+
+    // await waitForBuffer(channel);
+    // await sendChunk(channel, chunk);
+    const buffer = await chunk.arrayBuffer();
+
     await waitForBuffer(channel);
-    await sendChunk(channel, chunk);
 
-    chunkCount++;
+    channel.send(buffer);
 
-    if (chunkCount % 100 === 0) {
-      console.log(
-        `Chunk ${chunkCount}, bufferedAmount = ${channel.bufferedAmount}`,
-      );
-    }
+    bytesTransferred += buffer.byteLength;
+
+    onProgress(bytesTransferred);    
   }
 
   // 3. Tell receiver we're done

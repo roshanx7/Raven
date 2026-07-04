@@ -5,7 +5,8 @@ import { socketEvents } from "../services/socketEvents";
 import { Upload, File, Copy } from "lucide-react";
 import toast from "react-hot-toast";
 
-import { chunkFile } from "../services/transfer/chunker";
+
+import type { TransferState } from "../services/transfer/TransferState";
 
 // 1. Declare the props interface to satisfy Landing.tsx type rules
 
@@ -17,6 +18,7 @@ interface SenderCardProps {
   connectionState: RTCPeerConnectionState;
   dataChannelReady: boolean;
   sendFile: (file: File) => Promise<void>;
+  transfer: TransferState;
 }
 
 export default function SenderCard({
@@ -26,6 +28,7 @@ export default function SenderCard({
   connectionState,
   dataChannelReady,
   sendFile,
+  transfer,
 }: SenderCardProps) {
   const [selectedFile, setSelectedFile] = useState<globalThis.File | null>(
     null,
