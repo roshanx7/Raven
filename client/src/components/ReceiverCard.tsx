@@ -40,7 +40,7 @@ export default function ReceiverCard({
     // Fired when the server verifies the PIN and accepts you into the room map
     const cleanupJoined = socketEvents.onJoined(() => {
       setStatus(
-        "Connected to session! Synthesizing peer description handshake...",
+        "Pin accepted! Connecting to the sender...",
       );
       setIsJoined(true);
       onSessionJoin(pinRef.current); // Use the ref safely
@@ -48,9 +48,13 @@ export default function ReceiverCard({
 
     // Fired when your input fails room validation boundaries on the backend
     const cleanupError = socketEvents.onSessionError(({ message }) => {
+    if (message.toLowerCase().includes("not found") || message.toLowerCase().includes("invalid")) {
+      setStatus("That pin doesn't match any active rooms. Please check it and try again.");
+    } else {
       setStatus(message);
-      setIsJoined(false);
-    });
+    }
+    setIsJoined(false);
+  });
 
     return () => {
       cleanupJoined();
@@ -63,19 +67,17 @@ export default function ReceiverCard({
     if (!isJoined) return;
 
     if (connectionState === "connecting") {
-      setStatus("Exchanging structural handshake tokens...");
+      setStatus("Linking your devices securely...");
     } else if (connectionState === "connected") {
-      setStatus("Directly connected to sender! Secure channel established.");
+      setStatus("Connected! Ready to receive your file.");
     } else if (connectionState === "failed") {
-      setStatus(
-        "The network bridge failed. Check internet routing parameters.",
-      );
+      setStatus("Connection lost. Please check your internet connection and try again.");
     }
   }, [connectionState, isJoined]);
 
   const handleConnect = () => {
     if (pin.length !== 6) return;
-    setStatus("Authenticating pin room token...");
+    setStatus("Authenticating pin...");
     setSessionPin(pin);
     onSessionJoin(pin);
     socketActions.joinSession(pin);

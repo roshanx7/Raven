@@ -17,7 +17,7 @@ import {
 
 // ------IMPORTS---------
 
-export function useWebRTC(pin: string) {
+export function useWebRTC() {
   const [connectionState, setConnectionState] =
     useState<RTCPeerConnectionState>("new");
 
@@ -25,12 +25,15 @@ export function useWebRTC(pin: string) {
 
   const [transfer, setTransfer] = useState<TransferState>(initialTransferState);
 
+  const [roomPin, setRoomPin] = useState<string>("");
+
   // Always read .current at call time so async handlers never use a stale pin
-  const pinRef = useRef(pin);
-  pinRef.current = pin;
+  const pinRef = useRef(roomPin);
+  pinRef.current = roomPin;
 
   function setSessionPin(newPin: string) {
     pinRef.current = newPin;
+    setRoomPin(newPin); // Update the roomPin state when the session pin changes
   }
 
   // Stores ICE candidates until remote description is available
@@ -268,5 +271,6 @@ export function useWebRTC(pin: string) {
     sendFile,
     transfer,
     peer,
+    roomPin,
   };
 }
