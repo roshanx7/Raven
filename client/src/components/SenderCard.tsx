@@ -18,6 +18,7 @@ interface SenderCardProps {
   dataChannelReady: boolean;
   sendFile: (file: File) => Promise<void>;
   transfer: TransferState;
+  sessionMode: "idle" | "sender" | "receiver";
 }
 
 export default function SenderCard({
@@ -28,14 +29,20 @@ export default function SenderCard({
   dataChannelReady,
   sendFile,
   transfer,
+  sessionMode,
 }: SenderCardProps) {
   const [selectedFile, setSelectedFile] = useState<globalThis.File | null>(
     null,
   );
   const [pin, setPin] = useState("------");
   const [status, setStatus] = useState("Choose a file to start sharing");
-  const pinRef = useRef(pin);
 
+  const progress =
+    transfer.fileSize === 0
+      ? 0
+      : (transfer.bytesTransferred / transfer.fileSize) * 100;
+
+  const pinRef = useRef(pin);
   useEffect(() => {
     pinRef.current = pin;
   }, [pin]);
@@ -180,11 +187,48 @@ export default function SenderCard({
 
           <div className="mt-6 rounded-xl bg-zinc-800 p-4">
             <p className="text-sm text-zinc-400">Status</p>
+
             <p
-              className={`mt-2 font-medium ${connectionState === "connected" ? "text-emerald-400" : "text-blue-400"}`}
+              className={`mt-2 font-medium ${
+                connectionState === "connected"
+                  ? "text-emerald-400"
+                  : "text-blue-400"
+              }`}
             >
               {status}
             </p>
+
+            {sessionMode === "sender" && transfer.fileSize > 0 && (
+              <>
+                <div className="mt-5 flex items-center justify-between">
+                  <p className="font-medium break-all text-white">
+                    {transfer.fileName}
+                  </p>
+
+                  <span className="text-sm text-zinc-400">
+                    {progress.toFixed(1)}%
+                  </span>
+                </div>
+
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-700">
+                  <div
+                    className="h-full rounded-full bg-blue-500 transition-all duration-150"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+
+                <div className="mt-2 flex justify-between text-sm text-zinc-400">
+                  <span>
+                    {(transfer.bytesTransferred / 1024 / 1024).toFixed(2)} MB
+                  </span>
+
+                  <span>{(transfer.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                </div>
+                <p className="mt-2 text-sm text-zinc-400">
+                  {(transfer.bytesPerSecond / 1024 / 1024).toFixed(2)} MB/s
+                </p>
+              </>
+            )}
           </div>
         </>
       )}

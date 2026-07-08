@@ -7,9 +7,9 @@ import {
 } from "../services/webrtc";
 import { socketActions } from "../services/socketActions";
 import { socketEvents } from "../services/socketEvents";
-import { handleIncomingMessage } from "../services/transfer/receiver";
 
-import { sendFileTransfer } from "../services/transfer/sender";
+import { transferManager } from "../services/transfer/transferManager";
+
 import {
   initialTransferState,
   type TransferState,
@@ -66,7 +66,39 @@ export function useWebRTC(pin: string) {
 
     channel.onmessage = (event) => {
       // // console.log("Data channel message received:", event.data);
-      handleIncomingMessage(event);
+      transferManager.receive(event, {
+        onMetadata: (name, size, mimeType) => {
+          setTransfer({
+            fileName: name,
+            fileSize: size,
+            mimeType,
+
+            bytesTransferred: 0,
+            bytesPerSecond: 0,
+            etaSeconds: 0,
+
+            status: "receiving",
+          });
+        },
+
+        onProgress: (
+  bytesTransferred,
+  bytesPerSecond,
+) => {
+  setTransfer((prev) => ({
+    ...prev,
+    bytesTransferred,
+    bytesPerSecond,
+  }));
+},
+
+        onComplete: () => {
+          setTransfer((prev) => ({
+            ...prev,
+            status: "completed",
+          }));
+        },
+      });
     };
 
     // Save the channel so other functions can use it
@@ -192,25 +224,39 @@ export function useWebRTC(pin: string) {
       return;
     }
 
-    // Initialize transfer state
-    setTransfer({
-      fileName: file.name,
-      fileSize: file.size,
-      mimeType: file.type,
-
-      bytesTransferred: 0,
-      bytesPerSecond: 0,
-      etaSeconds: 0,
-
-      status: "sending",
-    });
-
     // await sendFileTransfer(channel, file);
-    await sendFileTransfer(channel, file, (bytesTransferred) => {
-      setTransfer((prev) => ({
+    await transferManager.send(channel, file, {
+      onStart: (file) => {
+        setTransfer({
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+
+          bytesTransferred: 0,
+          bytesPerSecond: 0,
+          etaSeconds: 0,
+
+          status: "sending",
+        });
+      },
+
+      onProgress: (
+    bytesTransferred,
+    bytesPerSecond,
+) => {
+    setTransfer(prev => ({
         ...prev,
         bytesTransferred,
-      }));
+        bytesPerSecond,
+    }));
+},
+
+      onComplete: () => {
+        setTransfer((prev) => ({
+          ...prev,
+          status: "completed",
+        }));
+      },
     });
   }
 
