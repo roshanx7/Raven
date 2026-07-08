@@ -1,8 +1,16 @@
 import { MessageType, type TransferMessage } from "./protocol";
 import { IncomingTransfer } from "./IncomingTransfer";
+import type { ReceiveTransferCallbacks } from "./transferCallbacks";
 
 let currentTransfer: IncomingTransfer | null = null;
-export function handleIncomingMessage(event: MessageEvent) {
+let bytesReceived = 0;
+let startTime = 0;
+
+export function handleIncomingMessage(
+  event: MessageEvent,
+  callbacks?: ReceiveTransferCallbacks,
+) {
+  // Binary chunk received
   if (event.data instanceof ArrayBuffer) {
     if (!currentTransfer) {
       console.error("No active transfer.");
@@ -11,7 +19,12 @@ export function handleIncomingMessage(event: MessageEvent) {
 
     currentTransfer.assembler.addChunk(event.data);
 
-    // console.log("Received binary chunk:", event.data.byteLength);
+    bytesReceived += event.data.byteLength;
+
+    const elapsedSeconds = (performance.now() - startTime) / 1000;
+    const bytesPerSecond = bytesReceived / elapsedSeconds;
+
+    callbacks?.onProgress?.(bytesReceived, bytesPerSecond);
 
     return;
   }
@@ -20,27 +33,28 @@ export function handleIncomingMessage(event: MessageEvent) {
 
   switch (message.type) {
     case MessageType.METADATA:
-      console.log("Incoming file:");
+      bytesReceived = 0;
+      startTime = performance.now();
+
       currentTransfer = new IncomingTransfer(
         message.name,
         message.size,
         message.mimeType,
       );
 
-      console.log("Incoming file:");
-      console.log(currentTransfer);
+      callbacks?.onMetadata?.(message.name, message.size, message.mimeType);
 
       break;
 
     case MessageType.END_OF_FILE: {
       if (!currentTransfer) return;
 
-      
       console.log("Transfer finished.");
-        console.log(currentTransfer);
+
       const blob = currentTransfer.assembler.buildFile(
         currentTransfer.mimeType,
       );
+
       console.log("Blob size:", blob.size);
 
       const url = URL.createObjectURL(blob);
@@ -48,16 +62,19 @@ export function handleIncomingMessage(event: MessageEvent) {
       const a = document.createElement("a");
       a.href = url;
       a.download = currentTransfer.name;
-      document.body.appendChild(a);
-a.click();
-document.body.removeChild(a);
-      
 
-    //   setTimeout(() => URL.revokeObjectURL(url), 1000);
-    URL.revokeObjectURL(url);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      URL.revokeObjectURL(url);
+
+      callbacks?.onComplete?.();
 
       currentTransfer.assembler.clear();
       currentTransfer = null;
+      bytesReceived = 0;
+      startTime = 0;
 
       break;
     }

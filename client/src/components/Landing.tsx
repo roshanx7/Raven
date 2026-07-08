@@ -6,10 +6,19 @@ import { useWebRTC } from "../hooks/useWebRTC";
 
 export default function Landing() {
   const connected = useSocket();
-  const [activePin, setActivePin] = useState<string | null>(null);  
-  const [sessionMode, setSessionMode] = useState<"idle" | "sender" | "receiver">("idle");
+  const [activePin, setActivePin] = useState<string | null>(null);
+  const [sessionMode, setSessionMode] = useState<
+    "idle" | "sender" | "receiver"
+  >("idle");
 
-  const { createOffer, setSessionPin, connectionState, dataChannelReady, sendFile } = useWebRTC(activePin || "");
+  const {
+    createOffer,
+    setSessionPin,
+    connectionState,
+    dataChannelReady,
+    sendFile,
+    transfer,
+  } = useWebRTC(activePin || "");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white flex items-center justify-center px-4 relative">
@@ -53,6 +62,8 @@ export default function Landing() {
               connectionState={connectionState}
               dataChannelReady={dataChannelReady}
               sendFile={sendFile}
+              transfer={transfer}
+              sessionMode={sessionMode}
               onSessionStart={(pin) => {
                 setSessionPin(pin);
                 setActivePin(pin);
@@ -64,6 +75,8 @@ export default function Landing() {
               disabled={sessionMode === "sender"}
               connectionState={connectionState}
               setSessionPin={setSessionPin}
+              transfer={transfer}
+              sessionMode={sessionMode}
               onSessionJoin={(pin) => {
                 setActivePin(pin);
                 setSessionMode("receiver");

@@ -2,24 +2,33 @@ import { useEffect, useState, useRef } from "react";
 import { socketActions } from "../services/socketActions";
 import { socketEvents } from "../services/socketEvents";
 import { Download, Link2 } from "lucide-react";
+import type { TransferState } from "../services/transfer/TransferState";
 
 interface ReceiverCardProps {
   disabled: boolean;
   setSessionPin: (pin: string) => void;
   onSessionJoin: (pin: string) => void;
   connectionState: RTCPeerConnectionState;
+  transfer: TransferState;
+  sessionMode: "idle" | "sender" | "receiver";
 }
 
-export default function ReceiverCard({ 
+export default function ReceiverCard({
   disabled,
   setSessionPin,
-  onSessionJoin, 
-  connectionState 
+  onSessionJoin,
+  connectionState,
+  transfer,
+  sessionMode,
 }: ReceiverCardProps) {
-  
   const [pin, setPin] = useState("");
   const [status, setStatus] = useState("Waiting for PIN...");
   const [isJoined, setIsJoined] = useState(false);
+
+  const progress =
+    transfer.fileSize === 0
+      ? 0
+      : (transfer.bytesTransferred / transfer.fileSize) * 100;
 
   // Use a mutable ref to track the pin so the useEffect can access its latest value without adding 'pin' to the dependency array.
   const pinRef = useRef(pin);
@@ -27,11 +36,12 @@ export default function ReceiverCard({
     pinRef.current = pin;
   }, [pin]);
 
-
   useEffect(() => {
     // Fired when the server verifies the PIN and accepts you into the room map
     const cleanupJoined = socketEvents.onJoined(() => {
-      setStatus("Connected to session! Synthesizing peer description handshake...");
+      setStatus(
+        "Connected to session! Synthesizing peer description handshake...",
+      );
       setIsJoined(true);
       onSessionJoin(pinRef.current); // Use the ref safely
     });
@@ -57,7 +67,9 @@ export default function ReceiverCard({
     } else if (connectionState === "connected") {
       setStatus("Directly connected to sender! Secure channel established.");
     } else if (connectionState === "failed") {
-      setStatus("The network bridge failed. Check internet routing parameters.");
+      setStatus(
+        "The network bridge failed. Check internet routing parameters.",
+      );
     }
   }, [connectionState, isJoined]);
 
@@ -70,7 +82,7 @@ export default function ReceiverCard({
   };
 
   return (
-    <div 
+    <div
       className={`rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 p-8 shadow-lg h-full transition-all duration-300
         ${disabled ? "opacity-30 pointer-events-none scale-95" : "hover:border-white/20 hover:-translate-y-1"}
       `}
@@ -109,9 +121,55 @@ export default function ReceiverCard({
 
       <div className="mt-8 rounded-xl bg-zinc-800 p-4">
         <p className="text-sm text-zinc-400">Status</p>
-        <p className={`mt-2 font-medium ${connectionState === "connected" ? "text-emerald-400" : "text-blue-400"}`}>
+
+        <p
+          className={`mt-2 font-medium ${
+            connectionState === "connected"
+              ? "text-emerald-400"
+              : "text-blue-400"
+          }`}
+        >
           {status}
         </p>
+
+        {sessionMode === "receiver" && transfer.fileSize > 0 && (
+          <>
+            <div className="mt-5">
+              <p className="text-xs uppercase tracking-wide text-zinc-500">
+                Receiving
+              </p>
+
+              <p className="mt-1 break-all font-medium text-white">
+                {transfer.fileName}
+              </p>
+            </div>
+
+            <div className="mt-4 flex justify-between text-sm text-zinc-400">
+              <span>
+                {(transfer.bytesTransferred / 1024 / 1024).toFixed(2)} MB
+              </span>
+
+              <span>{(transfer.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+            </div>
+
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-700">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-all duration-100"
+                style={{
+                  width: `${progress}%`,
+                }}
+              />
+            </div>
+
+            <div className="mt-2 text-right text-sm text-zinc-400">
+              {progress.toFixed(1)}%
+            </div>
+
+            <p className="mt-2 text-sm text-zinc-400">
+              {(transfer.bytesPerSecond / 1024 / 1024).toFixed(2)} MB/s
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
