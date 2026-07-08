@@ -50,7 +50,7 @@ export default function Landing() {
         {!connected ? (
           <div className="mt-14 p-8 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/20 text-center max-w-2xl mx-auto">
             <p className="text-zinc-400">
-              Establishing a secure connection to the signaling server...
+              Waiting for the signaling server...
             </p>
           </div>
         ) : (

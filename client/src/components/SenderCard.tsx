@@ -59,13 +59,13 @@ export default function SenderCard({
     const cleanupSessionCreated = socketEvents.onSessionCreated(({ pin }) => {
       pinRef.current = pin;
       setPin(pin);
-      setStatus("Waiting for receiver...");
+      setStatus("Ready! Share the code above with the receiver.");
       onSessionStart(pin); // Notify parent component of the new session
     });
 
     // Fired when the receiver types PIN and joins the session.
     const cleanupReceiverJoined = socketEvents.onReceiverJoined(() => {
-      setStatus("Receiver connected! Initializing peer pipeline...");
+      setStatus("Receiver connected! Starting file transfer...");
       createOffer(pinRef.current);
     });
 
@@ -88,11 +88,11 @@ export default function SenderCard({
   // Mirror WebRTC native connection states back into the human-readable UI status block
   useEffect(() => {
     if (connectionState === "connecting") {
-      setStatus("Establishing encrypted P2P bridge...");
+      setStatus("Securing a direct link between devices...");
     } else if (connectionState === "connected") {
-      setStatus("Securely connected! Stream channel ready.");
+      setStatus("Connected! Sending file now...");
     } else if (connectionState === "failed") {
-      setStatus("Connection dropped. Please re-select file to retry.");
+      setStatus("Connection dropped. Please refresh and try again.");
     }
   }, [connectionState]);
 
