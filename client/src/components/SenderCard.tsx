@@ -47,19 +47,36 @@ export default function SenderCard({
     pinRef.current = pin;
   }, [pin]);
 
-  //only for testing purposes, to send metadata when the data channel is ready and a file is selected
   useEffect(() => {
     if (!dataChannelReady || !selectedFile) return;
 
     sendFile(selectedFile);
   }, [dataChannelReady, selectedFile]);
 
+  // // to save state of the session in local storage so that if the user refreshes the page, we can restore the session.
+  // useEffect(() => {
+  //   const pendingSession = localStorage.getItem("raven_pending_sender");
+  //   if (pendingSession) {
+  //     const { name, size } = JSON.parse(pendingSession);
+
+  //     // Create a mock file object to restore the UI state cleanly
+  //     setSelectedFile({ name, size } as any);
+  //     setStatus("Restoring session...");
+
+  //     // Clean up storage so it doesn't loop infinitely
+  //     localStorage.removeItem("raven_pending_sender");
+
+  //     // Automatically trigger the session creation now that the page is stable
+  //     socketActions.createSession();
+  //   }
+  // }, []);
+
   useEffect(() => {
     // Fired when the backend returns a unique PIN for this session
     const cleanupSessionCreated = socketEvents.onSessionCreated(({ pin }) => {
       pinRef.current = pin;
       setPin(pin);
-      setStatus("Ready! Share the code above with the receiver.");
+      setStatus("Ready! Share the PIN above with the receiver.");
       onSessionStart(pin); // Notify parent component of the new session
     });
 
@@ -72,7 +89,7 @@ export default function SenderCard({
     // Fired when the receiver disconnects from the session.
     const cleanupPeerDisconnected = socketEvents.onPeerDisconnected(
       ({ peerId }) => {
-        if (peerId === pin) {
+        if (peerId === pinRef.current) {
           setStatus("Receiver disconnected! Session ended.");
         }
       },
@@ -102,14 +119,13 @@ export default function SenderCard({
     // Note: We use globalThis.File to clearly differentiate between JavaScript's native
     // File binary object and Lucide's <File /> icon component.
     const file = e.target.files[0];
-
     setSelectedFile(file);
 
-    // (async () => {
-    //   for await (const chunk of chunkFile(file)) {
-    //     console.log(chunk.size);
-    //   }
-    // })();
+    // // Save minimal file details to storage BEFORE asking the server for a session
+    // localStorage.setItem(
+    //   "raven_pending_sender",
+    //   JSON.stringify({ name: file.name, size: file.size })
+    // );
 
     setStatus("Creating session...");
 
@@ -178,7 +194,7 @@ export default function SenderCard({
                   ));
                 }}
                 className="rounded-lg bg-white p-2 text-black transition hover:bg-zinc-200"
-                title="Click to copy pin to clipboard"
+                title="Click to copy PIN to clipboard"
               >
                 <Copy size={18} />
               </button>
@@ -190,44 +206,61 @@ export default function SenderCard({
 
             <p
               className={`mt-2 font-medium ${
-                connectionState === "connected"
-                  ? "text-emerald-400"
-                  : "text-blue-400"
+                // If the connection failed or was dropped, make the text red
+                connectionState === "failed" ||
+                status.includes("dropped") ||
+                status.includes("lost")
+                  ? "text-rose-500"
+                  : connectionState === "connected"
+                    ? "text-emerald-400"
+                    : "text-blue-400"
               }`}
             >
               {status}
             </p>
 
-            {sessionMode === "sender" && transfer.fileSize > 0 && (
-              <>
-                <div className="mt-5 flex items-center justify-between">
-                  <p className="font-medium break-all text-white">
-                    {transfer.fileName}
+            {/* Only display the file progress details if the connection is active and not canceled */}
+            {sessionMode === "sender" &&
+              transfer.fileSize > 0 &&
+              !status.includes("canceled") &&
+              connectionState !== "failed" && (
+                <>
+                  <div className="mt-5 flex items-center justify-between">
+                    <p className="font-medium break-all text-white">
+                      {transfer.fileName}
+                    </p>
+                    <span className="text-sm text-zinc-400">
+                      {progress.toFixed(1)}%
+                    </span>
+                  </div>
+
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-700">
+                    <div
+                      className="h-full rounded-full bg-blue-500 transition-all duration-150"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+
+                  <div className="mt-2 flex justify-between text-sm text-zinc-400">
+                    <span>
+                      {(transfer.bytesTransferred / 1024 / 1024).toFixed(2)} MB
+                    </span>
+                    <span>
+                      {(transfer.fileSize / 1024 / 1024).toFixed(2)} MB
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-sm text-zinc-400">
+                    {(transfer.bytesPerSecond / 1024 / 1024).toFixed(2)} MB/s
                   </p>
+                </>
+              )}
 
-                  <span className="text-sm text-zinc-400">
-                    {progress.toFixed(1)}%
-                  </span>
-                </div>
-
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-700">
-                  <div
-                    className="h-full rounded-full bg-blue-500 transition-all duration-150"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-
-                <div className="mt-2 flex justify-between text-sm text-zinc-400">
-                  <span>
-                    {(transfer.bytesTransferred / 1024 / 1024).toFixed(2)} MB
-                  </span>
-
-                  <span>{(transfer.fileSize / 1024 / 1024).toFixed(2)} MB</span>
-                </div>
-                <p className="mt-2 text-sm text-zinc-400">
-                  {(transfer.bytesPerSecond / 1024 / 1024).toFixed(2)} MB/s
-                </p>
-              </>
+            {/* NEW: Explicit help text when the transfer is broken */}
+            {(status.includes("canceled") || connectionState === "failed") && (
+              <div className="mt-4 border-t border-zinc-700/50 pt-3 text-xs text-zinc-400">
+                <p>To try again, refresh the page.</p>
+              </div>
             )}
           </div>
         </>

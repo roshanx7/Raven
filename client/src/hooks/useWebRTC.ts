@@ -84,16 +84,13 @@ export function useWebRTC() {
           });
         },
 
-        onProgress: (
-  bytesTransferred,
-  bytesPerSecond,
-) => {
-  setTransfer((prev) => ({
-    ...prev,
-    bytesTransferred,
-    bytesPerSecond,
-  }));
-},
+        onProgress: (bytesTransferred, bytesPerSecond) => {
+          setTransfer((prev) => ({
+            ...prev,
+            bytesTransferred,
+            bytesPerSecond,
+          }));
+        },
 
         onComplete: () => {
           setTransfer((prev) => ({
@@ -243,16 +240,13 @@ export function useWebRTC() {
         });
       },
 
-      onProgress: (
-    bytesTransferred,
-    bytesPerSecond,
-) => {
-    setTransfer(prev => ({
-        ...prev,
-        bytesTransferred,
-        bytesPerSecond,
-    }));
-},
+      onProgress: (bytesTransferred, bytesPerSecond) => {
+        setTransfer((prev) => ({
+          ...prev,
+          bytesTransferred,
+          bytesPerSecond,
+        }));
+      },
 
       onComplete: () => {
         setTransfer((prev) => ({

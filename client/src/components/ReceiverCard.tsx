@@ -30,39 +30,44 @@ export default function ReceiverCard({
       ? 0
       : (transfer.bytesTransferred / transfer.fileSize) * 100;
 
-  // Use a mutable ref to track the pin so the useEffect can access its latest value without adding 'pin' to the dependency array.
   const pinRef = useRef(pin);
   useEffect(() => {
     pinRef.current = pin;
   }, [pin]);
 
   useEffect(() => {
-    // Fired when the server verifies the PIN and accepts you into the room map
     const cleanupJoined = socketEvents.onJoined(() => {
-      setStatus(
-        "Pin accepted! Connecting to the sender...",
-      );
+      setStatus("PIN accepted! Connecting to the sender...");
       setIsJoined(true);
-      onSessionJoin(pinRef.current); // Use the ref safely
+      onSessionJoin(pinRef.current);
     });
 
-    // Fired when your input fails room validation boundaries on the backend
     const cleanupError = socketEvents.onSessionError(({ message }) => {
-    if (message.toLowerCase().includes("not found") || message.toLowerCase().includes("invalid")) {
-      setStatus("That pin doesn't match any active rooms. Please check it and try again.");
-    } else {
-      setStatus(message);
-    }
-    setIsJoined(false);
-  });
+      if (
+        message.toLowerCase().includes("not found") ||
+        message.toLowerCase().includes("invalid")
+      ) {
+        setStatus("That PIN doesn't match any active rooms. Please check it and try again.");
+      } else {
+        setStatus(message);
+      }
+      setIsJoined(false);
+    });
+
+    // Handle sender dropping out mid-session
+    const cleanupPeerDisconnected = socketEvents.onPeerDisconnected(({ peerId }) => {
+      if (peerId === pinRef.current) {
+        setStatus("The sender disconnected. Transfer canceled.");
+      }
+    });
 
     return () => {
       cleanupJoined();
       cleanupError();
+      cleanupPeerDisconnected();
     };
-  }, [onSessionJoin]); // Safe: Only runs once on mount and handles re-renders beautifully
+  }, [onSessionJoin]);
 
-  // Keep the UI up to date with native P2P network layer status updates
   useEffect(() => {
     if (!isJoined) return;
 
@@ -77,11 +82,18 @@ export default function ReceiverCard({
 
   const handleConnect = () => {
     if (pin.length !== 6) return;
-    setStatus("Authenticating pin...");
+    setStatus("Authenticating PIN...");
     setSessionPin(pin);
     onSessionJoin(pin);
     socketActions.joinSession(pin);
   };
+
+  // Condition to check if an active failure state exists
+  const isFailedOrCanceled =
+    connectionState === "failed" ||
+    status.includes("doesn't match") ||
+    status.includes("canceled") ||
+    status.includes("lost");
 
   return (
     <div
@@ -124,9 +136,12 @@ export default function ReceiverCard({
       <div className="mt-8 rounded-xl bg-zinc-800 p-4">
         <p className="text-sm text-zinc-400">Status</p>
 
+        {/* Dynamic color classing for human errors & network failure states */}
         <p
           className={`mt-2 font-medium ${
-            connectionState === "connected"
+            isFailedOrCanceled
+              ? "text-rose-400"
+              : connectionState === "connected"
               ? "text-emerald-400"
               : "text-blue-400"
           }`}
@@ -134,7 +149,8 @@ export default function ReceiverCard({
           {status}
         </p>
 
-        {sessionMode === "receiver" && transfer.fileSize > 0 && (
+        {/* Only display file details and progress if things are going smoothly */}
+        {sessionMode === "receiver" && transfer.fileSize > 0 && !isFailedOrCanceled && (
           <>
             <div className="mt-5">
               <p className="text-xs uppercase tracking-wide text-zinc-500">
@@ -171,6 +187,13 @@ export default function ReceiverCard({
               {(transfer.bytesPerSecond / 1024 / 1024).toFixed(2)} MB/s
             </p>
           </>
+        )}
+
+        {/* Informative next steps printed on broken states */}
+        {isFailedOrCanceled && (
+          <div className="mt-4 border-t border-zinc-700/50 pt-3 text-xs text-zinc-400">
+            <p>Please double-check your PIN with the sender or refresh the page to restart.</p>
+          </div>
         )}
       </div>
     </div>

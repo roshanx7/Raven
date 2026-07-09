@@ -41,12 +41,12 @@ export default function Landing() {
         {!connected ? (
           <div className="mt-14 p-8 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/20 text-center max-w-2xl mx-auto">
             <p className="text-zinc-400">
-              Waking up the network... Please hold on.
+              Waiting for the signaling server to connect...
             </p>
           </div>
         ) : (
-          <div className="mt-14 grid gap-8 md:grid-cols-2 items-start">
-            {/* Sender Interface Block */}
+          <div className="mt-14 grid gap-8 md:grid-cols-2 items-stretch">
+           
             <SenderCard
               disabled={sessionMode === "receiver"}
               createOffer={createOffer}
@@ -60,8 +60,7 @@ export default function Landing() {
                 setSessionMode("sender");
               }}
             />
-
-            {/* Receiver Interface Block */}
+           
             <ReceiverCard
               disabled={sessionMode === "sender"}
               connectionState={connectionState}
@@ -76,7 +75,7 @@ export default function Landing() {
           </div>
         )}
 
-        {/* Dynamic Status Overlay at bottom */}
+        {/* Display the active room session PIN and mode if available */}
         {roomPin && (
           <div className="mt-8 text-center text-xs text-zinc-500">
             Active Room Session:{" "}
